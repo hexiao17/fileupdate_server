@@ -1,0 +1,80 @@
+[
+  {
+    "id": "f08c5ca2-1383-4f74-a008-4eb0ac032407",
+    "version": "v1.0.2",
+    "description": "1",
+    "fileName": "latest.yml",
+    "filePath": "1763304077552-latest.yml",
+    "fileSize": 360,
+    "tokenName": "手动发布",
+    "tokenId": null,
+    "uploadedAt": "2025-11-16T14:41:18.036Z",
+    "status": "success"
+  },
+  {
+    "id": "37f904e4-80b4-4b25-9678-ce297d720dbc",
+    "version": "v1.0.2",
+    "description": "1",
+    "fileName": "NocoBase Desktop 1.0.2.exe",
+    "filePath": "1763304077552-NocoBase Desktop 1.0.2.exe",
+    "fileSize": 76431989,
+    "tokenName": "手动发布",
+    "tokenId": null,
+    "uploadedAt": "2025-11-16T14:41:18.036Z",
+    "status": "success"
+  },
+  {
+    "id": "06b204b2-1f76-420c-8c3f-9b32b4cc7b26",
+    "version": "v1.0.2",
+    "description": "1",
+    "fileName": "NocoBase Desktop Setup 1.0.2.exe",
+    "filePath": "1763304077777-NocoBase Desktop Setup 1.0.2.exe",
+    "fileSize": 76677730,
+    "tokenName": "手动发布",
+    "tokenId": null,
+    "uploadedAt": "2025-11-16T14:41:18.036Z",
+    "status": "success"
+  },
+  {
+    "id": "daa245d8-7ab4-439a-87e1-56b0fb8a52a5",
+    "appId": "a",
+    "appName": "a",
+    "version": "v1.0.2",
+    "description": "a",
+    "fileName": "latest.yml",
+    "filePath": "1763304454409-latest.yml",
+    "fileSize": 360,
+    "tokenName": "手动发布",
+    "tokenId": null,
+    "uploadedAt": "2025-11-16T14:47:34.971Z",
+    "status": "success"
+  },
+  {
+    "id": "7e5a13ce-7350-4c3d-9c29-df26e973e5eb",
+    "appId": "a",
+    "appName": "a",
+    "version": "v1.0.2",
+    "description": "a",
+    "fileName": "NocoBase Desktop 1.0.2.exe",
+    "filePath": "1763304454409-NocoBase Desktop 1.0.2.exe",
+    "fileSize": 76431989,
+    "tokenName": "手动发布",
+    "tokenId": null,
+    "uploadedAt": "2025-11-16T14:47:34.971Z",
+    "status": "success"
+  },
+  {
+    "id": "db206b45-ed00-410b-8fdd-7dc6bd8a5499",
+    "appId": "a",
+    "appName": "a",
+    "version": "v1.0.2",
+    "description": "a",
+    "fileName": "NocoBase Desktop Setup 1.0.2.exe",
+    "filePath": "1763304454693-NocoBase Desktop Setup 1.0.2.exe",
+    "fileSize": 76677730,
+    "tokenName": "手动发布",
+    "tokenId": null,
+    "uploadedAt": "2025-11-16T14:47:34.971Z",
+    "status": "success"
+  }
+]

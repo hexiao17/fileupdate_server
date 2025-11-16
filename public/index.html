@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>应用发布服务器 - 管理界面</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div>
+                    <h1>🚀 应用发布服务器</h1>
+                    <p class="subtitle" id="subtitle">Token管理和发布历史</p>
+                </div>
+                <div class="admin-controls" id="admin-controls" style="display: none;">
+                    <span class="admin-badge">管理员模式</span>
+                    <button class="btn btn-small" id="logout-btn" onclick="logoutAdmin()">退出登录</button>
+                </div>
+                <div class="user-controls" id="user-controls" style="display: none;">
+                    <button class="btn btn-small" id="login-btn" onclick="loginAsAdmin()">管理员登录</button>
+                </div>
+            </div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="apps" id="tab-apps">应用管理</button>
+            <button class="tab-btn" data-tab="tokens" id="tab-tokens">Token管理</button>
+            <button class="tab-btn" data-tab="releases" id="tab-releases">发布历史</button>
+            <button class="tab-btn" data-tab="publish" id="tab-publish">发布应用</button>
+        </div>
+
+        <!-- 应用管理标签页 -->
+        <div class="tab-content active" id="apps-tab">
+            <div class="card">
+                <h2>创建新应用</h2>
+                <form id="app-form">
+                    <div class="form-group">
+                        <label>应用ID (appId)</label>
+                        <input type="text" id="app-id" placeholder="例如: my-app" required pattern="[a-zA-Z0-9_-]+">
+                        <small>只能包含字母、数字、连字符和下划线</small>
+                    </div>
+                    <div class="form-group">
+                        <label>应用名称</label>
+                        <input type="text" id="app-name" placeholder="例如: 我的应用" required>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="app-description" placeholder="应用说明"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">创建应用</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>应用列表</h2>
+                <div id="apps-list" class="apps-list">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Token管理标签页 -->
+        <div class="tab-content" id="tokens-tab">
+            <div class="card">
+                <h2>生成新Token</h2>
+                <form id="token-form">
+                    <div class="form-group">
+                        <label>Token名称</label>
+                        <input type="text" id="token-name" placeholder="例如: 生产环境" required>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="token-description" placeholder="Token用途说明"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>有效期（可选）</label>
+                        <select id="token-expires">
+                            <option value="365d">1年</option>
+                            <option value="180d">6个月</option>
+                            <option value="90d">3个月</option>
+                            <option value="30d">1个月</option>
+                            <option value="7d">1周</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">生成Token</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Token列表</h2>
+                <div id="tokens-list" class="tokens-list">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 发布历史标签页 -->
+        <div class="tab-content" id="releases-tab">
+            <div class="card">
+                <h2>发布历史</h2>
+                <div id="releases-list" class="releases-list">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 发布应用标签页 -->
+        <div class="tab-content" id="publish-tab">
+            <div class="card">
+                <h2>发布应用</h2>
+                <p style="color: #666; margin-bottom: 20px;">手动发布不需要Token，可直接上传文件</p>
+                <form id="publish-form">
+                    <div class="form-group">
+                        <label>选择应用</label>
+                        <select id="publish-app-id" required>
+                            <option value="">请选择应用...</option>
+                        </select>
+                        <small>如果列表为空，请先在"应用管理"中创建应用</small>
+                    </div>
+                    <div class="form-group">
+                        <label>版本号</label>
+                        <input type="text" id="publish-version" placeholder="例如: v1.0.0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="publish-description" placeholder="本次发布的说明"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>选择文件（可多选）</label>
+                        <input type="file" id="publish-file" multiple required>
+                        <small>提示：可以同时选择多个文件进行发布</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">发布</button>
+                </form>
+                <div id="publish-result" class="result-message"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token显示模态框 -->
+    <div id="token-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>新Token已生成</h2>
+            <p class="warning">⚠️ 请妥善保管此Token，它只会显示一次！</p>
+            <div class="token-display">
+                <code id="modal-token"></code>
+                <button class="btn btn-small" onclick="copyToken()">复制</button>
+            </div>
+            <button class="btn btn-primary" onclick="closeModal()">已保存</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
