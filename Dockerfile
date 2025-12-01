@@ -2,8 +2,8 @@ FROM node:20-alpine AS base
 
 WORKDIR /usr/src/app
 
-# 安装系统依赖（如后续需要，可在这里扩展）
-RUN apk add --no-cache bash
+# 安装构建依赖：bash + python + 编译工具链（为 better-sqlite3 等原生模块编译用）
+RUN apk add --no-cache bash python3 make g++
 
 COPY package.json package-lock.json* ./
 
