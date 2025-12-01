@@ -3,6 +3,17 @@ let adminPassword = null;
 let isAdmin = false;
 let releaseTrendChart = null;
 
+// 简单的HTML转义，防止XSS
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // 检查管理员状态
 function checkAdminStatus() {
     const savedPassword = localStorage.getItem('adminPassword');

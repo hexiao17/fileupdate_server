@@ -7,7 +7,8 @@ RUN apk add --no-cache bash
 
 COPY package.json package-lock.json* ./
 
-RUN npm ci --only=production
+# 使用 npm install，避免锁文件未及时更新导致 npm ci 失败
+RUN npm install --omit=dev
 
 COPY . .
 
