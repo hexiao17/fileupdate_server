@@ -1,6 +1,7 @@
 const API_BASE = '/api';
 let adminPassword = null;
 let isAdmin = false;
+let releaseTrendChart = null;
 
 // 检查管理员状态
 function checkAdminStatus() {
@@ -28,15 +29,24 @@ function updateUIForAdmin() {
         tab.style.display = 'flex';
     });
     
-    // 显示所有标签页内容
+    // 移除所有标签页内容的 active 类和内联样式
     const tabContents = document.querySelectorAll('.tab-content');
     tabContents.forEach(content => {
-        content.style.display = content.id === 'releases-tab' ? 'block' : 'none';
+        content.classList.remove('active');
+        content.style.display = ''; // 清除内联样式，让CSS控制
     });
     
-    // 激活第一个标签页
+    // 移除所有标签页按钮的 active 类
+    tabs.forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // 激活第一个标签页（应用管理）
     tabs[0].classList.add('active');
-    document.getElementById('apps-tab').classList.add('active');
+    const appsTab = document.getElementById('apps-tab');
+    if (appsTab) {
+        appsTab.classList.add('active');
+    }
 }
 
 // 更新UI为普通用户模式
@@ -47,7 +57,7 @@ function updateUIForUser() {
     document.getElementById('subtitle').textContent = '应用发布和下载';
     
     // 隐藏管理员专用标签页
-    const adminTabs = ['apps', 'tokens', 'publish'];
+    const adminTabs = ['apps', 'tokens', 'publish', 'stats'];
     const tabs = document.querySelectorAll('.tab-btn');
     tabs.forEach(tab => {
         const tabName = tab.getAttribute('data-tab');
@@ -63,10 +73,10 @@ function updateUIForUser() {
     tabContents.forEach(content => {
         if (content.id === 'releases-tab') {
             content.classList.add('active');
-            content.style.display = 'block';
+            content.style.display = ''; // 清除内联样式，让CSS控制
         } else {
             content.classList.remove('active');
-            content.style.display = 'none';
+            content.style.display = ''; // 清除内联样式，让CSS控制
         }
     });
     
@@ -128,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadApps();
         loadTokens();
         loadReleases();
+        loadStatsSummary();
     }
 });
 
@@ -141,7 +152,7 @@ function setupTabs() {
             const targetTab = btn.getAttribute('data-tab');
             
             // 检查权限：普通用户不能访问管理员功能
-            const adminTabs = ['apps', 'tokens', 'publish'];
+            const adminTabs = ['apps', 'tokens', 'publish', 'stats'];
             if (!isAdmin && adminTabs.includes(targetTab)) {
                 alert('此功能需要管理员权限，请先登录！');
                 return;
@@ -152,15 +163,21 @@ function setupTabs() {
                 return;
             }
             
+            // 移除所有标签页按钮和内容的 active 类
             tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => c.classList.remove('active'));
+            tabContents.forEach(c => {
+                c.classList.remove('active');
+                c.style.display = ''; // 清除内联样式，让CSS控制
+            });
             
+            // 激活当前标签页
             btn.classList.add('active');
             const targetContent = document.getElementById(`${targetTab}-tab`);
             if (targetContent) {
                 targetContent.classList.add('active');
             }
             
+            // 根据标签页加载相应内容
             if (targetTab === 'apps') {
                 loadApps();
             } else if (targetTab === 'tokens') {
@@ -173,6 +190,8 @@ function setupTabs() {
                 }
             } else if (targetTab === 'publish') {
                 loadAppsForPublish();
+            } else if (targetTab === 'stats') {
+                loadStatsSummary();
             }
         });
     });
@@ -236,8 +255,8 @@ async function loadApps() {
         listDiv.innerHTML = apps.map(app => `
             <div class="app-item">
                 <div class="app-info">
-                    <h3>${app.name} <span style="color: #666; font-size: 14px;">(${app.appId})</span></h3>
-                    <p>${app.description || '无描述'}</p>
+                    <h3>${escapeHtml(app.name)} <span style="color: #666; font-size: 14px;">(${escapeHtml(app.appId)})</span></h3>
+                    <p>${escapeHtml(app.description || '无描述')}</p>
                     <p style="font-size: 12px; color: #999;">
                         创建: ${formatDate(app.createdAt)} | 
                         更新: ${formatDate(app.updatedAt)}
@@ -268,7 +287,7 @@ async function loadAppsForPublish() {
         const apps = await response.json();
         
         select.innerHTML = '<option value="">请选择应用...</option>' + 
-            apps.map(app => `<option value="${app.appId}">${app.name} (${app.appId})</option>`).join('');
+            apps.map(app => `<option value="${escapeHtml(app.appId)}">${escapeHtml(app.name)} (${escapeHtml(app.appId)})</option>`).join('');
     } catch (error) {
         select.innerHTML = '<option value="">加载失败</option>';
     }
@@ -456,8 +475,8 @@ async function loadTokens() {
         listDiv.innerHTML = tokens.map(token => `
             <div class="token-item">
                 <div class="token-info">
-                    <h3>${token.name} ${!token.active ? '<span style="color: #e74c3c;">(已禁用)</span>' : ''}</h3>
-                    <p>${token.description || '无描述'}</p>
+                    <h3>${escapeHtml(token.name)} ${!token.active ? '<span style="color: #e74c3c;">(已禁用)</span>' : ''}</h3>
+                    <p>${escapeHtml(token.description || '无描述')}</p>
                     <p class="token-code">${token.token}</p>
                     <p style="font-size: 12px; color: #999;">
                         创建: ${formatDate(token.createdAt)} | 
@@ -539,17 +558,17 @@ async function loadPublicReleases() {
                 <div class="app-header">
                     <h3 class="app-title">
                         <span class="app-icon">📱</span>
-                        ${app.appName}
-                        <span class="app-id">(${app.appId})</span>
+                        ${escapeHtml(app.appName)}
+                        <span class="app-id">(${escapeHtml(app.appId)})</span>
                     </h3>
                     <span class="app-version-count">共 ${app.versions.length} 个版本</span>
                 </div>
-                ${app.versions.map(versionGroup => `
+                        ${app.versions.map(versionGroup => `
                     <div class="release-card">
                         <div class="release-header">
                             <div class="release-title-section">
                                 <h2 class="release-version">
-                                    <span class="version-tag">${versionGroup.version}</span>
+                                    <span class="version-tag">${escapeHtml(versionGroup.version)}</span>
                                     ${versionGroup.files.length > 1 ? `<span class="file-count-badge">${versionGroup.files.length} 个文件</span>` : ''}
                                 </h2>
                                 <div class="release-meta">
@@ -559,7 +578,7 @@ async function loadPublicReleases() {
                         </div>
                         ${versionGroup.description ? `
                             <div class="release-description">
-                                ${versionGroup.description}
+                                ${escapeHtml(versionGroup.description)}
                             </div>
                         ` : ''}
                         <div class="release-files">
@@ -568,7 +587,7 @@ async function loadPublicReleases() {
                                 ${versionGroup.files.map(file => `
                                     <div class="file-item">
                                         <div class="file-info">
-                                            <span class="file-name">${file.fileName}</span>
+                                            <span class="file-name">${escapeHtml(file.fileName)}</span>
                                             <div class="file-meta">
                                                 <span class="file-size">${formatFileSize(file.fileSize)}</span>
                                                 <span class="file-downloads">下载 ${file.downloadCount || 0} 次</span>
@@ -693,18 +712,22 @@ async function loadReleases() {
                                 ${versionGroup.files.map(file => `
                                     <div class="file-item">
                                         <div class="file-info">
-                                            <span class="file-name">${file.fileName}</span>
+                                            <span class="file-name">${escapeHtml(file.fileName)}</span>
                                             <div class="file-meta">
                                                 <span class="file-size">${formatFileSize(file.fileSize)}</span>
                                                 <span class="file-downloads">下载 ${file.downloadCount || 0} 次</span>
                                             </div>
                                         </div>
-                                        <a href="${API_BASE}/download/${file.id}" class="btn-download" download>
-                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                <path d="M8 12V2M8 12L5 9M8 12L11 9M2 13.5h12"/>
-                                            </svg>
-                                            下载
-                                        </a>
+                                        <div class="file-actions">
+                                            <a href="${API_BASE}/download/${file.id}" class="btn-download" download>
+                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M8 12V2M8 12L5 9M8 12L11 9M2 13.5h12"/>
+                                                </svg>
+                                                下载
+                                            </a>
+                                            <button class="btn btn-small" onclick="openReleaseEdit('${file.id}', '${file.version || ''}', '${(file.description || '').replace(/'/g, "\\'")}')">修改</button>
+                                            <button class="btn btn-small btn-danger" onclick="deleteRelease('${file.id}', '${file.fileName.replace(/'/g, "\\'")}')">删除</button>
+                                        </div>
                                     </div>
                                 `).join('')}
                             </div>
@@ -715,6 +738,133 @@ async function loadReleases() {
         `).join('');
     } catch (error) {
         listDiv.innerHTML = '<div class="loading" style="color: #e74c3c;">加载失败: ' + error.message + '</div>';
+    }
+}
+
+// 统计报表
+async function loadStatsSummary() {
+    const summaryCards = {
+        apps: document.getElementById('stat-total-apps'),
+        releases: document.getElementById('stat-total-releases'),
+        downloads: document.getElementById('stat-total-downloads'),
+        tokens: document.getElementById('stat-total-tokens')
+    };
+    const appTableBody = document.getElementById('stats-app-table');
+    const topDownloadsContainer = document.getElementById('stats-top-downloads');
+    const chartCanvas = document.getElementById('stats-release-chart');
+
+    if (!summaryCards.apps || !appTableBody || !topDownloadsContainer || !chartCanvas) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/stats/summary`, {
+            headers: {
+                'x-admin-password': adminPassword
+            }
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || '加载统计数据失败');
+        }
+
+        summaryCards.apps.textContent = formatNumber(data.totals.apps);
+        summaryCards.releases.textContent = formatNumber(data.totals.releases);
+        summaryCards.downloads.textContent = formatNumber(data.totals.downloads);
+        summaryCards.tokens.textContent = formatNumber(data.totals.tokens);
+
+        if (!data.apps.length) {
+            appTableBody.innerHTML = '<tr><td colspan="5" class="loading">暂无应用数据</td></tr>';
+        } else {
+            appTableBody.innerHTML = data.apps.map(app => `
+                <tr>
+                    <td>
+                        <div style="display:flex;flex-direction:column;">
+                            <span style="font-weight:600;color:#111827;">${app.appName}</span>
+                            <span style="font-size:12px;color:#94a3b8;">${app.appId}</span>
+                        </div>
+                    </td>
+                    <td>${app.totalReleases}</td>
+                    <td>${formatNumber(app.totalDownloads)}</td>
+                    <td>${app.latestVersion || '-'}</td>
+                    <td>${app.lastReleaseAt ? formatDate(app.lastReleaseAt) : '尚未发布'}</td>
+                </tr>
+            `).join('');
+        }
+
+        if (!data.topDownloads.length) {
+            topDownloadsContainer.innerHTML = '<div class="loading">暂无下载记录</div>';
+        } else {
+            topDownloadsContainer.innerHTML = data.topDownloads.map(item => `
+                <div class="top-download-item">
+                    <div class="file-info">
+                        <span class="file-name">${item.fileName}</span>
+                        <span class="file-meta">${item.appId || '未分类'} · ${item.version || '未指定版本'}</span>
+                    </div>
+                    <span class="download-count">${formatNumber(item.downloadCount)} 次</span>
+                </div>
+            `).join('');
+        }
+
+        // 安全绘制曲线，防止图表库异常导致页面崩溃
+        const chartData = data.releaseTrend || [];
+        if (typeof Chart === 'undefined') {
+            console.warn('Chart.js 未加载，跳过趋势图渲染');
+        } else if (!chartCanvas.getContext) {
+            console.warn('当前浏览器不支持 canvas 上下文，跳过趋势图渲染');
+        } else {
+            if (releaseTrendChart) {
+                releaseTrendChart.destroy();
+                releaseTrendChart = null;
+            }
+            // 固定画布尺寸，关闭响应式，避免反复 resize 导致页面抖动或崩溃
+            chartCanvas.height = 260;
+            const ctx = chartCanvas.getContext('2d');
+            releaseTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(item => item.date.slice(5)),
+                    datasets: [{
+                        label: '发布次数',
+                        data: chartData.map(item => item.count),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        Object.values(summaryCards).forEach(el => {
+            if (el) el.textContent = '-';
+        });
+        appTableBody.innerHTML = `<tr><td colspan="5" class="loading" style="color:#e74c3c;">${error.message}</td></tr>`;
+        topDownloadsContainer.innerHTML = `<div class="loading" style="color:#e74c3c;">${error.message}</div>`;
+        if (releaseTrendChart) {
+            releaseTrendChart.destroy();
+            releaseTrendChart = null;
+        }
     }
 }
 
@@ -794,12 +944,114 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
+function formatNumber(num) {
+    if (num === undefined || num === null) {
+        return '0';
+    }
+    const value = Number(num);
+    if (Number.isNaN(value)) {
+        return '0';
+    }
+    return value.toLocaleString('zh-CN');
+}
+
 // 模态框关闭事件
 document.querySelector('.close')?.addEventListener('click', closeModal);
 window.onclick = function(event) {
     const modal = document.getElementById('token-modal');
     if (event.target === modal) {
         closeModal();
+    }
+}
+
+// 发布记录编辑
+function openReleaseEdit(id, version, description) {
+    const adminTabs = ['apps', 'tokens', 'publish', 'stats'];
+    if (!isAdmin) {
+        alert('此功能需要管理员权限，请先登录！');
+        return;
+    }
+    const modal = document.getElementById('release-modal');
+    document.getElementById('release-id').value = id;
+    document.getElementById('release-version').value = version || '';
+    document.getElementById('release-description').value = description || '';
+    modal.style.display = 'block';
+}
+
+function closeReleaseModal() {
+    const modal = document.getElementById('release-modal');
+    modal.style.display = 'none';
+    document.getElementById('release-form').reset();
+}
+
+document.getElementById('release-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('release-id').value;
+    const version = document.getElementById('release-version').value;
+    const description = document.getElementById('release-description').value;
+
+    if (!id) {
+        alert('发布记录ID缺失');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/releases/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-password': adminPassword
+            },
+            body: JSON.stringify({ version, description })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+            alert('发布记录已更新');
+            closeReleaseModal();
+            loadReleases();
+            loadStatsSummary();
+        } else {
+            alert('错误: ' + data.error);
+        }
+    } catch (error) {
+        alert('请求失败: ' + error.message);
+    }
+});
+
+window.addEventListener('click', (event) => {
+    const modal = document.getElementById('release-modal');
+    if (event.target === modal) {
+        closeReleaseModal();
+    }
+});
+
+async function deleteRelease(id, fileName) {
+    if (!isAdmin) {
+        alert('此功能需要管理员权限，请先登录！');
+        return;
+    }
+    if (!confirm(`确定要删除文件 “${fileName}” 的发布记录吗？此操作不可恢复。`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/admin/releases/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'x-admin-password': adminPassword
+            }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert('发布记录已删除');
+            loadReleases();
+            loadStatsSummary();
+        } else {
+            alert('错误: ' + data.error);
+        }
+    } catch (error) {
+        alert('请求失败: ' + error.message);
     }
 }
 

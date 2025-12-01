@@ -31,6 +31,18 @@ cp .env.example .env
 - `JWT_SECRET`: JWT密钥（生产环境请使用强随机字符串）
 - `ADMIN_PASSWORD`: 管理员密码
 
+### 2.5 配置数据库驱动
+
+- 复制 `config/database.example.json` 为 `config/database.json`
+- `driver` 支持：
+  - `sqlite`：默认推荐，用于本地/测试环境（需安装 `better-sqlite3`）
+  - `json`：沿用旧版 JSON 文件存储，适合快速试用
+- `sqlite.filename` 可自定义数据库文件路径，例如 `./data/fileupdate.sqlite`
+- 也可以通过环境变量覆盖：
+  - `DB_DRIVER=sqlite` / `json`
+  - `DB_SQLITE_FILE=./data/dev.sqlite`
+  - `DB_JSON_BASEDIR=./`
+
 ### 3. 启动服务器
 
 ```bash
@@ -48,6 +60,12 @@ npm run dev
 打开浏览器访问: `http://localhost:3000`
 
 首次访问时会提示输入管理员密码（默认: `admin123`）
+
+### 5. 查看统计报表
+
+- 管理端切换到“统计报表”标签页，即可查看应用概览、累计下载、发布趋势，以及下载最多的文件
+- 报表数据来自 `/api/admin/stats/summary` 接口，仅管理员可访问
+- 若需二次开发，可直接请求该接口，将 JSON 数据接入 BI 或监控平台
 
 ## 使用指南
 
@@ -97,6 +115,22 @@ curl http://localhost:3000/api/latest
 curl http://localhost:3000/api/download/RELEASE_ID
 ```
 
+### 手机端下载页面
+
+- 访问地址：`http://localhost:3000/mobile.html`
+- 特性：
+  - 自动聚合每个应用的最新版本与历史版本
+  - 适配手机触屏操作，支持一键复制/分享下载链接
+  - 可添加到主屏幕，方便终端用户随时下载
+- 如果需要在特定应用之间切换，可使用页面顶部的下拉框过滤
+
+### 数据存储
+
+- 通过 `config/database.json` 配置存储方式，默认使用 SQLite
+- JSON 驱动依旧支持，会在 `apps.json`、`tokens.json`、`releases.json` 中读写
+- SQLite 驱动启动时自动建表，数据位于 `data/fileupdate.sqlite`
+- 测试环境会自动使用独立的 SQLite 文件，避免污染正式数据
+
 ## API文档
 
 ### 管理员API
@@ -128,6 +162,22 @@ Headers: x-admin-password: YOUR_PASSWORD
 ```
 GET /api/admin/releases
 Headers: x-admin-password: YOUR_PASSWORD
+```
+
+#### 获取统计摘要
+```
+GET /api/admin/stats/summary
+Headers: x-admin-password: YOUR_PASSWORD
+```
+
+#### 更新/删除发布记录
+```
+PUT /api/admin/releases/:id
+DELETE /api/admin/releases/:id
+Headers: x-admin-password: YOUR_PASSWORD
+Body(可选):
+  - version: 新版本号
+  - description: 新发布说明
 ```
 
 ### 发布API

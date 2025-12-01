@@ -1,0 +1,14 @@
+{
+  "driver": "sqlite",
+  "sqlite": {
+    "filename": "./data/fileupdate.sqlite",
+    "pragma": {
+      "journal_mode": "wal",
+      "synchronous": "normal"
+    }
+  },
+  "json": {
+    "baseDir": "."
+  }
+}
+

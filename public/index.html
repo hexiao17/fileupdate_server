@@ -29,6 +29,7 @@
             <button class="tab-btn" data-tab="tokens" id="tab-tokens">Token管理</button>
             <button class="tab-btn" data-tab="releases" id="tab-releases">发布历史</button>
             <button class="tab-btn" data-tab="publish" id="tab-publish">发布应用</button>
+            <button class="tab-btn" data-tab="stats" id="tab-stats">统计报表</button>
         </div>
 
         <!-- 应用管理标签页 -->
@@ -137,6 +138,60 @@
                 <div id="publish-result" class="result-message"></div>
             </div>
         </div>
+
+        <!-- 统计报表标签页 -->
+        <div class="tab-content stats-tab" id="stats-tab">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <p class="stat-label">应用总数</p>
+                    <p class="stat-value" id="stat-total-apps">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">发布次数</p>
+                    <p class="stat-value" id="stat-total-releases">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">累计下载</p>
+                    <p class="stat-value" id="stat-total-downloads">0</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">有效Token</p>
+                    <p class="stat-value" id="stat-total-tokens">0</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>应用概览</h2>
+                <div class="table-wrapper">
+                    <table class="stats-table">
+                        <thead>
+                            <tr>
+                                <th>应用</th>
+                                <th>发布次数</th>
+                                <th>累计下载</th>
+                                <th>最新版本</th>
+                                <th>最近更新时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stats-app-table">
+                            <tr><td colspan="5" class="loading">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>发布趋势（14天）</h2>
+                <canvas id="stats-release-chart"></canvas>
+            </div>
+
+            <div class="card">
+                <h2>下载最多的文件</h2>
+                <div id="stats-top-downloads" class="top-downloads">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Token显示模态框 -->
@@ -153,6 +208,30 @@
         </div>
     </div>
 
+    <!-- 发布记录编辑模态框 -->
+    <div id="release-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeReleaseModal()">&times;</span>
+            <h2>修改发布记录</h2>
+            <form id="release-form">
+                <input type="hidden" id="release-id">
+                <div class="form-group">
+                    <label>版本号</label>
+                    <input type="text" id="release-version">
+                </div>
+                <div class="form-group">
+                    <label>发布说明</label>
+                    <textarea id="release-description" rows="4"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="closeReleaseModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/vendor/chart.js/chart.umd.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

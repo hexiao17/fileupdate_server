@@ -1,0 +1,7 @@
+{
+  "driver": "sqlite",
+  "sqlite": {
+    "filename": "./data/fileupdate.sqlite"
+  }
+}
+
