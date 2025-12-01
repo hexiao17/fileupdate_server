@@ -43,7 +43,7 @@ cp .env.example .env
   - `DB_SQLITE_FILE=./data/dev.sqlite`
   - `DB_JSON_BASEDIR=./`
 
-### 3. 启动服务器
+### 3. 启动服务器（本机运行）
 
 ```bash
 npm start
@@ -54,6 +54,39 @@ npm start
 ```bash
 npm run dev
 ```
+
+### 3.1 使用 Docker 启动服务器（推荐用于复杂环境）
+
+#### 构建镜像
+
+```bash
+docker build -t fileupdate-server .
+```
+
+#### 运行容器（简单方式）
+
+```bash
+docker run -d \
+  --name fileupdate-server \
+  -p 3000:3000 \
+  -v $(pwd)/data:/usr/src/app/data \
+  -v $(pwd)/uploads:/usr/src/app/uploads \
+  -e NODE_ENV=production \
+  -e ADMIN_PASSWORD=your-strong-admin-password \
+  -e JWT_SECRET=your-strong-jwt-secret \
+  -e SESSION_SECRET=your-strong-session-secret \
+  fileupdate-server
+```
+
+#### 使用 docker-compose（推荐）
+
+```bash
+docker-compose up -d
+```
+
+> 说明：
+> - `./data` 与 `./uploads` 会挂载到容器内，保证数据与上传文件在容器重建后仍然存在  
+> - 请务必在生产环境中自行设置强随机的 `ADMIN_PASSWORD` / `JWT_SECRET` / `SESSION_SECRET`
 
 ### 4. 访问管理界面
 

@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  fileupdate-server:
+    build: .
+    container_name: fileupdate-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # 建议在生产环境中覆盖以下变量
+      # - ADMIN_PASSWORD=your-strong-admin-password
+      # - JWT_SECRET=your-strong-jwt-secret
+      # - SESSION_SECRET=your-strong-session-secret
+      # - CORS_ORIGIN=http://your-admin-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/usr/src/app/data
+      - ./uploads:/usr/src/app/uploads
+
+
