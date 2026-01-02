@@ -8,6 +8,11 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
+      - LC_CTYPE=UTF-8
+      - MAX_FILE_SIZE=209715200  # 200MB (200 * 1024 * 1024)
       # 建议在生产环境中覆盖以下变量
       # - ADMIN_PASSWORD=your-strong-admin-password
       # - JWT_SECRET=your-strong-jwt-secret

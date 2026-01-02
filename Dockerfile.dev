@@ -1,0 +1,34 @@
+FROM node:20-alpine
+
+WORKDIR /usr/src/app
+
+# 安装系统工具和开发工具，包括SQLite编译依赖
+RUN apk add --no-cache \
+    bash \
+    python3 \
+    make \
+    g++ \
+    musl-locales \
+    git \
+    curl \
+    vim \
+    htop \
+    # SQLite编译依赖
+    sqlite-dev \
+    linux-headers \
+    openssh-client
+
+# 设置UTF-8字符编码
+ENV LANG=en_US.UTF-8 \
+    LANGUAGE=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    LC_CTYPE=UTF-8
+
+# 创建必要的目录
+RUN mkdir -p logs data uploads
+
+# 暴露端口
+EXPOSE 3000
+
+# 开发模式默认命令（会被docker-compose覆盖）
+CMD ["npm", "run", "dev"]

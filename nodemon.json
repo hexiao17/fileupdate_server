@@ -1,0 +1,26 @@
+{
+  "watch": [
+    "server.js",
+    "storage/",
+    "config/",
+    "public/"
+  ],
+  "ignore": [
+    "node_modules/",
+    "data/",
+    "uploads/",
+    "logs/",
+    "test-uploads/",
+    "*.log"
+  ],
+  "ext": "js,json",
+  "delay": 500,
+  "verbose": true,
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "exec": "node server.js",
+  "legacyWatch": false,
+  "restartable": "rs",
+  "colours": true
+}

@@ -30,7 +30,9 @@ if (allowedOrigin) {
   // 默认关闭跨域浏览器访问，只允许同源调用，更安全
   app.use(cors({ origin: false }));
 }
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+// 确保正确处理multipart/form-data的字符编码
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(
   session({
     name: 'sid',
@@ -46,7 +48,121 @@ app.use(
   })
 );
 app.use(express.static('public'));
+
+// 设置API响应的字符编码
+app.use('/api', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
+
 app.use('/vendor/chart.js', express.static(path.join(__dirname, 'node_modules/chart.js/dist')));
+
+// 文件名解码函数
+function decodeFileName(fileName) {
+  if (!fileName) return 'unnamed-file';
+
+  try {
+    // 尝试多种解码方式处理中文文件名
+    let decodedName = fileName;
+    console.log('🔍 原始文件名:', Buffer.from(fileName, 'binary').toString('utf8') || fileName);
+    console.log('🔍 文件名字节 (hex):', Buffer.from(fileName).toString('hex'));
+
+    // 处理RFC 6266编码的文件名 (filename*=UTF-8''...)
+    const rfc6266Match = fileName.match(/filename\*=UTF-8''(.+)/i);
+    if (rfc6266Match) {
+      console.log('📋 检测到RFC 6266编码');
+      decodedName = decodeURIComponent(rfc6266Match[1]);
+    } else {
+      // 处理普通的URL编码
+      try {
+        const urlDecoded = decodeURIComponent(fileName);
+        if (urlDecoded !== fileName) {
+          console.log('🔗 检测到URL编码');
+          decodedName = urlDecoded;
+        }
+      } catch (e) {
+        // 如果解码失败，保持原样
+        console.log('❌ URL解码失败，保持原样');
+        decodedName = fileName;
+      }
+    }
+
+    // 处理可能的字符编码问题
+    // 检查是否包含UTF-8字节序列但被当作Latin-1处理的情况
+    if (/[\x80-\xFF]/.test(decodedName)) {
+      try {
+        console.log('🌍 检测到可能的编码问题，尝试UTF-8解码');
+        // 如果原始文件名包含UTF-8字节序列，尝试直接当作UTF-8处理
+        const buffer = Buffer.from(fileName, 'binary');
+        const utf8Decoded = buffer.toString('utf8');
+        console.log('🔄 UTF-8解码结果:', utf8Decoded);
+        // 验证UTF-8解码是否成功（不包含替换字符）
+        if (!/[\uFFFD]/.test(utf8Decoded) && utf8Decoded !== fileName) {
+          decodedName = utf8Decoded;
+          console.log('✅ UTF-8解码成功');
+        } else {
+          console.log('⚠️ UTF-8解码未带来改进');
+        }
+      } catch (e) {
+        console.log('❌ UTF-8解码异常:', e.message);
+        // 保持原样
+      }
+    }
+
+    // 处理multipart/form-data中的编码问题
+    // 有些客户端会发送Latin-1编码的UTF-8字节
+    if (/[^\x00-\x7F]/.test(decodedName) === false && /[\x80-\xFF]/.test(fileName)) {
+      try {
+        console.log('🔄 尝试Latin-1到UTF-8转换');
+        // 将原始字节当作UTF-8解码
+        const buffer = Buffer.from(fileName, 'binary');
+        decodedName = buffer.toString('utf8');
+        console.log('✅ Latin-1转换结果:', decodedName);
+      } catch (e) {
+        console.log('❌ Latin-1转换失败');
+        // 保持原样
+      }
+    }
+
+    console.log('🎯 最终解码结果:', decodedName);
+    return decodedName;
+  } catch (error) {
+    console.warn('文件名解码失败:', error.message, '原始文件名:', fileName);
+    return fileName; // 返回原始文件名作为fallback
+  }
+}
+
+// 文件名清理函数
+function sanitizeFileName(fileName) {
+  if (!fileName) return 'unnamed-file';
+
+  // 确保是字符串类型
+  let cleanName = String(fileName);
+
+  // 移除或替换危险字符，保留中文字符
+  cleanName = cleanName
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_') // 替换危险字符为单个下划线
+    .replace(/\s+/g, '_') // 替换空白字符为下划线
+    .replace(/_+/g, '_') // 合并连续的下划线
+    .replace(/^_+|_+$/g, ''); // 移除开头和结尾的下划线
+
+  // 限制文件名长度，避免过长的文件名
+  if (cleanName.length > 100) {
+    const extIndex = cleanName.lastIndexOf('.');
+    if (extIndex > 0 && extIndex < cleanName.length - 1) {
+      const name = cleanName.substring(0, extIndex);
+      const ext = cleanName.substring(extIndex);
+      // 保留扩展名，截断文件名部分，总长度不超过100
+      const maxNameLength = 100 - ext.length;
+      cleanName = name.substring(0, maxNameLength) + ext;
+    } else {
+      cleanName = cleanName.substring(0, 100);
+    }
+  }
+
+  // 确保文件名不为空
+  return cleanName || 'unnamed-file';
+}
 
 // 文件上传配置
 const uploadStorage = multer.diskStorage({
@@ -54,14 +170,25 @@ const uploadStorage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${file.originalname}`;
+    // 正确解码文件名，确保UTF-8编码
+    const decodedFileName = decodeFileName(file.originalname);
+    const cleanFileName = sanitizeFileName(decodedFileName);
+    const uniqueName = `${Date.now()}-${cleanFileName}`;
     cb(null, uniqueName);
   }
 });
 
-const upload = multer({ 
+const MAX_FILE_SIZE = process.env.MAX_FILE_SIZE && !isNaN(parseInt(process.env.MAX_FILE_SIZE))
+  ? parseInt(process.env.MAX_FILE_SIZE)
+  : 200 * 1024 * 1024; // 默认200MB
+
+const upload = multer({
   storage: uploadStorage,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB限制
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    // 可以在这里添加额外的文件类型验证
+    cb(null, true);
+  }
 });
 
 function verifyToken(token) {
@@ -431,7 +558,7 @@ app.post('/api/admin/publish', authenticateAdmin, upload.array('files'), (req, r
     appName: app.name,
     version: version || '未指定版本',
     description: description || '',
-    fileName: file.originalname,
+    fileName: decodeFileName(file.originalname), // 使用解码后的文件名
     filePath: file.filename,
     fileSize: file.size,
     tokenName: '手动发布',
@@ -481,7 +608,7 @@ app.post('/api/publish', authenticateToken, upload.array('files'), (req, res) =>
     appName: app.name,
     version: version || '未指定版本',
     description: description || '',
-    fileName: file.originalname,
+    fileName: decodeFileName(file.originalname), // 使用解码后的文件名
     filePath: file.filename,
     fileSize: file.size,
     tokenName: tokenData.name,
@@ -575,6 +702,29 @@ app.get('/api/latest', (req, res) => {
     ...r,
     downloadUrl: `/api/download/${r.id}`
   })));
+});
+
+// Multer错误处理中间件
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        error: '文件大小超过限制 (最大 200MB)'
+      });
+    }
+    return res.status(400).json({
+      error: `文件上传错误: ${err.message}`
+    });
+  }
+  next(err);
+});
+
+// 通用错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('服务器错误:', err);
+  res.status(500).json({
+    error: '服务器内部错误'
+  });
 });
 
 // 导出 app 供测试使用

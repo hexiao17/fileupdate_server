@@ -43,6 +43,23 @@ cp .env.example .env
   - `DB_SQLITE_FILE=./data/dev.sqlite`
   - `DB_JSON_BASEDIR=./`
 
+### 2.6 开发环境配置
+
+项目支持专门的开发环境配置，包含热重载和调试工具：
+
+#### 开发环境文件
+- `docker-compose.dev.yml` - 开发环境Docker配置
+- `Dockerfile.dev` - 开发环境镜像构建文件
+- `nodemon.json` - 热重载配置文件
+- `dev.sh` / `dev.bat` - 快速启动脚本
+
+#### 开发环境特性
+- ✅ 源代码热重载（修改代码自动重启）
+- ✅ 实时日志输出
+- ✅ 调试工具集成（git、vim、htop等）
+- ✅ UTF-8字符编码支持
+- ✅ 完整的数据持久化
+
 ### 3. 启动服务器（本机运行）
 
 ```bash
@@ -60,12 +77,17 @@ npm run dev
 #### 构建镜像
 
 ```bash
+# 生产镜像
 docker build -t fileupdate-server .
+
+# 开发镜像（包含开发工具和热重载）
+docker build -f Dockerfile.dev -t fileupdate-server:dev .
 ```
 
 #### 运行容器（简单方式）
 
 ```bash
+# 生产环境
 docker run -d \
   --name fileupdate-server \
   -p 3000:3000 \
@@ -76,16 +98,54 @@ docker run -d \
   -e JWT_SECRET=your-strong-jwt-secret \
   -e SESSION_SECRET=your-strong-session-secret \
   fileupdate-server
+
+# 开发环境（支持热重载）
+docker run -it \
+  --name fileupdate-server-dev \
+  -p 3000:3000 \
+  -v $(pwd):/usr/src/app \
+  -v /usr/src/app/node_modules \
+  -e NODE_ENV=development \
+  fileupdate-server:dev
 ```
 
 #### 使用 docker-compose（推荐）
 
 ```bash
+# 生产模式（后台运行）
 docker-compose up -d
 ```
 
+#### 本地开发环境（推荐用于开发）
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器（热重载）
+npm run dev
+
+# 或直接运行
+node server.js
+```
+
+#### Docker开发环境（可选）
+
+```bash
+# 开发模式（实时日志 + 热重载）
+docker-compose -f docker-compose.dev.yml up
+
+# 开发模式（后台运行）
+docker-compose -f docker-compose.dev.yml up -d
+
+# 查看开发环境日志
+docker-compose -f docker-compose.dev.yml logs -f
+```
+
 > 说明：
-> - `./data` 与 `./uploads` 会挂载到容器内，保证数据与上传文件在容器重建后仍然存在  
+> - `./data` 与 `./uploads` 会挂载到容器内，保证数据与上传文件在容器重建后仍然存在
+> - 本地开发环境更简单直接，支持完整的热重载和调试
+> - Docker开发环境适合容器化部署测试，但本地开发更高效
 > - 请务必在生产环境中自行设置强随机的 `ADMIN_PASSWORD` / `JWT_SECRET` / `SESSION_SECRET`
 
 ### 4. 访问管理界面
@@ -99,6 +159,240 @@ docker-compose up -d
 - 管理端切换到“统计报表”标签页，即可查看应用概览、累计下载、发布趋势，以及下载最多的文件
 - 报表数据来自 `/api/admin/stats/summary` 接口，仅管理员可访问
 - 若需二次开发，可直接请求该接口，将 JSON 数据接入 BI 或监控平台
+
+## 内外网部署指南
+
+### 外网环境打包步骤
+
+#### 1. 准备代码和依赖
+```bash
+# 克隆或复制代码到外网环境
+git clone <your-repo> fileupdate-server
+cd fileupdate-server
+
+# 安装依赖
+npm install --production
+```
+
+#### 2. 构建生产镜像
+```bash
+# 构建生产镜像
+docker build -t fileupdate-server:latest .
+
+# 验证镜像
+docker images fileupdate-server:latest
+```
+
+#### 3. 导出镜像（推荐使用自动化脚本）
+```bash
+# Linux/macOS
+chmod +x export-image.sh
+./export-image.sh v1.0.0
+
+# Windows
+export-image.bat v1.0.0
+
+# 或手动导出
+mkdir -p export
+docker save fileupdate-server:latest -o export/fileupdate-server-v1.0.0.tar
+cd export
+# Linux/macOS
+sha256sum fileupdate-server-v1.0.0.tar > fileupdate-server-v1.0.0.tar.sha256
+# Windows (PowerShell)
+Get-FileHash fileupdate-server-v1.0.0.tar -Algorithm SHA256 > fileupdate-server-v1.0.0.tar.sha256
+cp ../docker-compose.yml .
+```
+
+#### 4. 验证导出文件
+```bash
+# 检查导出目录
+ls -la export/
+
+# 验证文件完整性
+cd export
+sha256sum -c fileupdate-server-v1.0.0.tar.sha256
+```
+
+### 内网环境部署步骤
+
+#### 1. 传输文件到内网
+```bash
+# 将export目录下的所有文件传输到内网服务器
+# 使用U盘、SCP、FTP等安全方式传输
+scp export/* user@inner-network-server:/path/to/deployment/
+```
+
+#### 2. 内网验证和加载
+```bash
+# 进入部署目录
+cd /path/to/deployment
+
+# 验证文件完整性
+sha256sum -c fileupdate-server-v1.0.0.tar.sha256
+
+# 加载Docker镜像
+docker load -i fileupdate-server-v1.0.0.tar
+
+# 验证镜像加载成功
+docker images | grep fileupdate-server
+```
+
+#### 3. 配置内网环境
+```bash
+# 创建必要的目录
+mkdir -p data uploads
+
+# 编辑docker-compose.yml，设置内网环境变量
+vim docker-compose.yml
+```
+
+内网环境的 `docker-compose.yml` 配置：
+```yaml
+version: "3.9"
+
+services:
+  fileupdate-server:
+    image: fileupdate-server:latest  # 使用已加载的本地镜像
+    container_name: fileupdate-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
+      - LC_CTYPE=UTF-8
+      - MAX_FILE_SIZE=209715200  # 200MB
+      # 内网环境的安全配置
+      - ADMIN_PASSWORD=your-intranet-admin-password
+      - JWT_SECRET=your-intranet-jwt-secret
+      - SESSION_SECRET=your-intranet-session-secret
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/usr/src/app/data
+      - ./uploads:/usr/src/app/uploads
+```
+
+#### 4. 启动服务
+```bash
+# 启动服务
+docker-compose up -d
+
+# 验证服务运行状态
+docker-compose ps
+
+# 查看启动日志
+docker-compose logs -f fileupdate-server
+```
+
+#### 5. 验证部署
+```bash
+# 测试API
+curl http://localhost:3000/api/health
+
+# 访问管理界面
+# 打开浏览器访问: http://your-inner-server:3000
+```
+
+### 故障排除
+
+#### 镜像加载失败
+```bash
+# 检查tar文件是否损坏
+file fileupdate-server-v1.0.0.tar
+
+# 重新传输文件
+# 确保传输过程中没有文件损坏
+```
+
+#### 容器启动失败
+```bash
+# 查看详细错误日志
+docker-compose logs fileupdate-server
+
+# 检查端口占用
+netstat -tlnp | grep :3000
+
+# 检查磁盘空间
+df -h
+```
+
+#### 中文文件名问题
+```bash
+# 确保环境变量正确设置
+docker exec fileupdate-server env | grep LANG
+
+# 检查容器内的字符编码
+docker exec fileupdate-server sh -c "locale"
+```
+
+### 版本管理和更新部署
+
+#### 构建新版本
+```bash
+# 在外网环境
+# 1. 更新代码和版本号
+git pull
+# 编辑 package.json 中的 version 字段
+
+# 2. 构建新镜像
+docker build -t fileupdate-server:v1.1.0 .
+
+# 3. 导出新版本
+./export-image.sh v1.1.0
+```
+
+#### 内网更新部署
+```bash
+# 1. 传输新版本文件到内网
+scp export/fileupdate-server-v1.1.0.tar* user@inner-server:/path/to/deployment/
+
+# 2. 内网加载新镜像
+docker load -i fileupdate-server-v1.1.0.tar
+
+# 3. 备份当前数据（可选）
+cp -r data data.backup
+cp -r uploads uploads.backup
+
+# 4. 停止当前服务
+docker-compose down
+
+# 5. 更新docker-compose.yml中的镜像版本
+# 编辑 image: fileupdate-server:v1.1.0
+
+# 6. 启动新版本
+docker-compose up -d
+
+# 7. 验证更新
+curl http://localhost:3000/api/health
+docker-compose logs -f fileupdate-server
+```
+
+### 部署检查清单
+
+#### 外网打包前检查
+- [ ] 代码已更新到最新版本
+- [ ] package.json版本号已更新
+- [ ] 所有依赖已安装
+- [ ] Docker镜像构建成功
+- [ ] 镜像功能测试通过
+
+#### 内网部署前检查
+- [ ] 所有导出文件已传输完成
+- [ ] 文件校验和验证通过
+- [ ] Docker镜像加载成功
+- [ ] docker-compose.yml配置正确
+- [ ] 环境变量设置安全
+- [ ] 数据目录权限正确
+
+#### 部署后验证
+- [ ] 服务启动成功
+- [ ] API接口响应正常
+- [ ] 管理界面可访问
+- [ ] 文件上传功能正常
+- [ ] 中文文件名显示正确
+- [ ] 数据库连接正常
 
 ## 使用指南
 
@@ -250,16 +544,26 @@ GET /api/download/:id
 
 ```
 fileupdate_server/
-├── server.js          # 服务器主文件
-├── package.json       # 项目配置
-├── .env              # 环境变量（需创建）
-├── tokens.json       # Token存储（自动生成）
-├── releases.json     # 发布记录（自动生成）
-├── uploads/          # 上传文件存储目录（自动生成）
-└── public/           # 前端静态文件
-    ├── index.html    # 管理界面
-    ├── style.css     # 样式文件
-    └── app.js        # 前端逻辑
+├── server.js              # 服务器主文件
+├── package.json           # 项目配置
+├── .env                  # 环境变量（需创建）
+├── docker-compose.yml     # Docker生产环境配置
+├── docker-compose.dev.yml # Docker开发环境配置
+├── Dockerfile            # 生产环境镜像构建
+├── Dockerfile.dev        # 开发环境镜像构建
+├── export-image.sh       # 镜像导出脚本 (Linux/macOS)
+├── export-image.bat      # 镜像导出脚本 (Windows)
+├── nodemon.json          # 热重载配置
+├── tokens.json           # Token存储（自动生成）
+├── releases.json         # 发布记录（自动生成）
+├── uploads/              # 上传文件存储目录（自动生成）
+├── data/                 # 数据库存储目录（自动生成）
+├── logs/                 # 日志文件目录（自动生成）
+├── export/               # 镜像导出目录（运行脚本时自动创建）
+└── public/               # 前端静态文件
+    ├── index.html        # 管理界面
+    ├── style.css         # 样式文件
+    └── app.js            # 前端逻辑
 ```
 
 ## 安全建议
