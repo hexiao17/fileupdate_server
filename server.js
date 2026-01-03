@@ -49,13 +49,30 @@ app.use(
 );
 app.use(express.static('public'));
 
-// 设置API响应的字符编码
+// 设置API响应的字符编码（排除下载API）
+app.use('/api/download', (req, res, next) => {
+  // 下载API不设置Content-Type，由具体处理逻辑决定
+  next();
+});
+
+// 为其他API设置JSON响应格式
 app.use('/api', (req, res, next) => {
+  // 跳过已经处理过的路由
+  if (req.path.startsWith('/api/download')) {
+    return next();
+  }
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   next();
 });
 
 app.use('/vendor/chart.js', express.static(path.join(__dirname, 'node_modules/chart.js/dist')));
+
+// 对文件名进行RFC 6266编码，用于HTTP头
+function encodeFileNameForHeader(fileName) {
+  // 对文件名进行百分号编码，只编码非ASCII字符
+  const encoded = encodeURIComponent(fileName);
+  return encoded;
+}
 
 // 文件名解码函数
 function decodeFileName(fileName) {
@@ -178,6 +195,32 @@ const uploadStorage = multer.diskStorage({
   }
 });
 
+// 允许的文件扩展名
+const ALLOWED_EXTENSIONS = [
+  // 压缩文件
+  '.rar', '.zip', '.7z', '.tar', '.gz',
+
+  // 应用安装包
+  '.apk', '.ipa', '.dmg', '.exe', '.msi',
+
+  // 图片文件
+  '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg',
+
+  // 文档文件
+  '.xls', '.xlsx', '.ppt', '.pptx', '.doc', '.docx', '.pdf', '.txt',
+
+  // 其他常用格式
+  '.json', '.xml', '.csv', '.yml', '.yaml', '.md', '.log'
+];
+
+// 检查文件扩展名是否被允许
+function isAllowedExtension(filename) {
+  if (!filename) return false;
+
+  const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+  return ALLOWED_EXTENSIONS.includes(ext);
+}
+
 const MAX_FILE_SIZE = process.env.MAX_FILE_SIZE && !isNaN(parseInt(process.env.MAX_FILE_SIZE))
   ? parseInt(process.env.MAX_FILE_SIZE)
   : 200 * 1024 * 1024; // 默认200MB
@@ -186,7 +229,10 @@ const upload = multer({
   storage: uploadStorage,
   limits: { fileSize: MAX_FILE_SIZE },
   fileFilter: (req, file, cb) => {
-    // 可以在这里添加额外的文件类型验证
+    // 检查文件扩展名
+    if (!isAllowedExtension(file.originalname)) {
+      return cb(new Error(`不支持的文件类型。允许的类型：${ALLOWED_EXTENSIONS.join(', ')}`), false);
+    }
     cb(null, true);
   }
 });
@@ -633,9 +679,12 @@ app.post('/api/publish', authenticateToken, upload.array('files'), (req, res) =>
 
 // 下载文件
 app.get('/api/download/:id', (req, res) => {
+  // 立即清除可能设置的Content-Type，确保下载正确
+  res.removeHeader('Content-Type');
+
   const { id } = req.params;
   const release = storage.findReleaseById(id);
-  
+
   if (!release) {
     return res.status(404).json({ error: '文件不存在' });
   }
@@ -643,9 +692,19 @@ app.get('/api/download/:id', (req, res) => {
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: '文件已丢失' });
   }
-  
+
   storage.incrementReleaseDownload(id);
-  res.download(filePath, release.fileName);
+
+  // 清除全局设置的Content-Type，并设置正确的下载头
+  res.removeHeader('Content-Type');
+  res.setHeader('Content-Type', 'application/octet-stream');
+
+  // 设置Content-Disposition头，支持中文文件名
+  const encodedFileName = encodeFileNameForHeader(release.fileName);
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFileName}`);
+
+  // 发送文件
+  res.sendFile(filePath);
 });
 
 // 获取指定应用的最新发布
@@ -716,6 +775,14 @@ app.use((err, req, res, next) => {
       error: `文件上传错误: ${err.message}`
     });
   }
+
+  // 处理文件类型验证错误
+  if (err.message && err.message.includes('不支持的文件类型')) {
+    return res.status(400).json({
+      error: err.message
+    });
+  }
+
   next(err);
 });
 

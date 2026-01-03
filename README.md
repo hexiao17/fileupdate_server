@@ -160,6 +160,23 @@ docker-compose -f docker-compose.dev.yml logs -f
 - 报表数据来自 `/api/admin/stats/summary` 接口，仅管理员可访问
 - 若需二次开发，可直接请求该接口，将 JSON 数据接入 BI 或监控平台
 
+### 6. 文件上传限制
+
+**支持的文件类型**：
+- **压缩文件**：`.rar`, `.zip`, `.7z`, `.tar`, `.gz`
+- **应用安装包**：`.apk`, `.ipa`, `.dmg`, `.exe`, `.msi`
+- **图片文件**：`.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.svg`
+- **文档文件**：`.xls`, `.xlsx`, `.ppt`, `.pptx`, `.doc`, `.docx`, `.pdf`, `.txt`
+- **其他常用格式**：`.json`, `.xml`, `.csv`, `.yml`, `.yaml`, `.md`, `.log`
+
+**文件大小限制**：默认最大200MB（可通过环境变量 `MAX_FILE_SIZE` 调整）
+
+**文件名处理**：
+- 支持中文文件名，正确解码和显示
+- 自动过滤危险字符
+- 保持原始文件扩展名
+- 下载时使用RFC 6266编码，确保特殊字符正确传输
+
 ## 内外网部署指南
 
 ### 外网环境打包步骤
@@ -194,7 +211,7 @@ export-image.bat v1.0.0
 
 # 或手动导出
 mkdir -p export
-docker save fileupdate-server:latest -o export/fileupdate-server-v1.0.0.tar
+docker save fileupdate-server:latest -o  fileupdate-server-v2.1.0.tar
 cd export
 # Linux/macOS
 sha256sum fileupdate-server-v1.0.0.tar > fileupdate-server-v1.0.0.tar.sha256
@@ -231,7 +248,7 @@ cd /path/to/deployment
 sha256sum -c fileupdate-server-v1.0.0.tar.sha256
 
 # 加载Docker镜像
-docker load -i fileupdate-server-v1.0.0.tar
+docker load -i fileupdate-server-v2.1.0.tar
 
 # 验证镜像加载成功
 docker images | grep fileupdate-server
@@ -337,7 +354,7 @@ git pull
 # 编辑 package.json 中的 version 字段
 
 # 2. 构建新镜像
-docker build -t fileupdate-server:v1.1.0 .
+docker build -t fileupdate-server:v2.1.0 .
 
 # 3. 导出新版本
 ./export-image.sh v1.1.0
